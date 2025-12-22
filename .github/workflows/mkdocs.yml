@@ -1,0 +1,47 @@
+name: Build and Deploy MkDocs Docs to VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install MkDocs
+        run: |
+          pip install mkdocs mkdocs-material
+
+      - name: Build MkDocs
+        run: mkdocs build
+
+      # Deploy to VPS over SSH
+      - name: Deploy Site to VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: actions
+          key: ${{ secrets.VPS_PRIV_KEY }}
+          port: 22
+          source: "site"
+          target: "/home/actions/repos/minechat"
+          strip_components: 1
+          rm: true
