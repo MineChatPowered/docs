@@ -15,3 +15,5 @@ Here you'll find:
 2. Check out the [Implementation Guides](implementation.md) for step-by-step instructions.
 
 For updates and community contributions, visit our [GitHub repository](https://github.com/MineChatPowered/docs).
+
+The content on this site is licensed under the [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) unless stated otherwise.
