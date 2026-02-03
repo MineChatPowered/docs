@@ -334,10 +334,6 @@ Client                         Server
 - Unknown CBOR fields **MUST** be ignored.
 - Packet type identifiers SHOULD be centrally documented.
 
-Good call — these two things are exactly what make a spec *implementable* instead of just “well written”.
-
-Below is an **append-only extension** to the spec you already have. Nothing here contradicts it; this just tightens it and removes any remaining ambiguity.
-
 ## Appendix A — Packet Reference Table
 
 This section provides a **single-glance reference** for implementors.
