@@ -84,6 +84,7 @@ Each frame consists of:
 ### 4.4 Connection Termination
 
 Any event that results in session termination, including:
+
 - client disconnect,
 - server kick,
 - ban, or
@@ -411,16 +412,17 @@ All packet structures are defined normatively in Section 8; this table is **non-
 
 ### Packet Type Table
 
-| Packet Name  | Type ID | Direction       | Mandatory | Purpose                                 |
-| ------------ | ------: | --------------- | --------- | --------------------------------------- |
-| LINK         |    0x01 | Client → Server | Yes       | Link client device to Minecraft account |
-| LINK_OK      |    0x02 | Server → Client | Yes       | Confirm successful linking              |
-| CAPABILITIES |    0x03 | Client → Server | Yes       | Declare client-supported features       |
-| AUTH_OK      |    0x04 | Server → Client | Yes       | Authentication complete                 |
-| CHAT_MESSAGE |    0x05 | Client ↔ Server | Yes       | Chat message transport                  |
-| PING         |    0x06 | Client ↔ Server | Yes       | Keep-alive and RTT measurement          |
-| PONG         |    0x07 | Client ↔ Server | Yes       | Response to PING                        |
-| MODERATION   |    0x08 | Server → Client | Optional  | Enforce moderation actions              |
+| Packet Name       | Type ID | Direction       | Mandatory | Purpose                                 |
+| ----------------- | ------: | --------------- | --------- | --------------------------------------- |
+| LINK              |    0x01 | Client → Server | Yes       | Link client device to Minecraft account |
+| LINK_OK           |    0x02 | Server → Client | Yes       | Confirm successful linking              |
+| CAPABILITIES      |    0x03 | Client → Server | Yes       | Declare client-supported features       |
+| AUTH_OK           |    0x04 | Server → Client | Yes       | Authentication complete                 |
+| CHAT_MESSAGE      |    0x05 | Client ↔ Server | Yes       | Chat message transport                  |
+| PING              |    0x06 | Client ↔ Server | Yes       | Keep-alive and RTT measurement          |
+| PONG              |    0x07 | Client ↔ Server | Yes       | Response to PING                        |
+| MODERATION        |    0x08 | Server → Client | Optional  | Enforce moderation actions              |
+| SYSTEM_DISCONNECT |    0x09 | Server → Client | Yes       | System-level disconnection              |
 
 ### Packet Field Reference
 
