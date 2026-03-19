@@ -275,6 +275,12 @@ The timestamp **MUST** match the corresponding PING.
 
 ### 8.8 MODERATION (Clientbound)
 
+The MODERATION packet is used by the server to enforce rules on client devices or Minecraft accounts. It communicates actions such as warnings, mutes, kicks, or bans, along with optional details like reason and duration.
+
+Clients **MUST** enforce these actions locally, applying them according to the specified scope (per client device or per account).
+
+This packet is strictly for moderation purposes and **does not convey system or server lifecycle events**.
+
 ```
 Packet Type: 0x08
 Direction: Server → Client
@@ -291,7 +297,51 @@ Payload:
 }
 ```
 
-Clients **MUST** enforce moderation actions locally.
+### 8.9 SYSTEM_DISCONNECT (Clientbound)
+
+```
+Packet Type: 0x09
+Direction: Server → Client
+```
+
+Payload:
+
+```
+{
+  0: reason_code (int),
+  1: message (string)
+}
+```
+
+The `SYSTEM_DISCONNECT` packet indicates that the server is intentionally terminating the connection due to a **system-level lifecycle event**, not a user-targeted moderation action.
+
+Unlike `MODERATION`, this packet is **not related to user behavior enforcement** and **MUST NOT** be used for kicks, bans, mutes, or account-level penalties.
+
+After sending `SYSTEM_DISCONNECT`, the server **MUST** immediately close the underlying TCP connection.
+
+Clients **MUST treat this packet as terminal** and **MUST NOT** attempt reconnection automatically unless explicitly configured.
+
+#### Reason Codes
+
+| Value | Meaning        |
+| ----: | -------------- |
+|     0 | Shutdown       |
+|     1 | Maintenance    |
+|     2 | Internal error |
+|     3 | Overloaded     |
+
+Implementations **MAY** define additional codes in the 128+ range for private or experimental use.
+
+#### Interaction with Keep-Alive
+
+`SYSTEM_DISCONNECT` **MAY** be sent at any time.
+
+After sending it:
+
+* server **SHOULD** stop sending further packets
+* server **MUST** close the connection immediately or after flushing pending frames
+
+Clients receiving `SYSTEM_DISCONNECT` **MUST NOT** wait for PING/PONG timeout and MUST terminate immediately.
 
 ## 9. Keep-Alive
 
