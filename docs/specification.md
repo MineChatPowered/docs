@@ -43,6 +43,16 @@ All connections **MUST** be established over TLS.
 - On subsequent connections, the client **MUST reject** the connection if the presented certificate does not match the pinned certificate.
 - Behavior on certificate rotation is **implementation-defined**, but certificate mismatch **MUST** cause connection failure.
 
+### 3.3 Default Port
+
+The MineChat protocol does not require a fixed port number.
+
+Implementations **SHOULD** use TCP port **7632** as the default when no explicit port is configured. The default port is provided for interoperability convenience and does not imply exclusivity.
+
+Implementations **MUST** allow the port to be configurable.
+
+Clients **MUST NOT** assume that a server is available on the default port and **MUST** allow users or configuration to specify an alternate port.
+
 ## 4. Framing Layer
 
 All MineChat messages are transmitted using a **length-prefixed binary framing format**.
