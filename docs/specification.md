@@ -81,6 +81,16 @@ Each frame consists of:
 - Receivers **MUST** read exactly the specified number of bytes.
 - Mismatched sizes or decompression failure **MUST** result in connection termination.
 
+### 4.4 Connection Termination
+
+Any event that results in session termination, including:
+- client disconnect,
+- server kick,
+- ban, or
+- fatal protocol error
+
+**MUST** result in the *immediate* closure of the underlying TCP connection by *at least one peer* after any required final packet has been transmitted.
+
 ## 5. Compression
 
 - All payloads **MUST** be compressed using **zstd**.
