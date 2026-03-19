@@ -92,6 +92,22 @@ Any event that results in session termination, including:
 
 **MUST** result in the *immediate* closure of the underlying TCP connection by *at least one peer* after any required final packet has been transmitted.
 
+### 4.5 Resource Limits
+
+Implementations **MUST** enforce implementation-defined limits on frame sizes and resource usage.
+
+In particular:
+
+- The declared `decompressed size` and `compressed size` fields **MUST** be validated **before** allocating memory or attempting decompression.
+- Implementations **SHOULD** enforce limits primarily on the `decompressed size` to prevent excessive memory usage and denial-of-service attacks.
+- Implementations **SHOULD** impose a maximum `decompressed size` of **1 MiB (1,048,576 bytes)** by default.
+- This limit is **implementation-defined** and **MAY** be configured differently depending on the deployment environment.
+- Frames whose declared sizes exceed the implementation's configured limits **MUST** be rejected.
+- Upon detecting such a violation, the implementation **MUST** terminate the connection.
+- Receivers **MUST NOT** attempt partial processing of frames that violate these limits.
+
+This specification does not mandate specific size limits; implementations are expected to choose limits appropriate for their environment.
+
 ## 5. Compression
 
 - All payloads **MUST** be compressed using **zstd**.
