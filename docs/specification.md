@@ -137,8 +137,10 @@ This specification defines semantic meaning for CBOR map keys within defined num
 Unless otherwise stated:
 
 - Integers inside CBOR are standard CBOR integers (variable width).
-- Strings are UTF-8 text strings.
-- UUIDs are encoded as text strings in canonical UUID format.
+- Strings **MUST** be encoded as **CBOR text strings** (*major type 3*) and therefore **MUST** be valid UTF-8.
+- Implementations **MUST** reject strings containing invalid UTF-8 sequences.
+- Strings **MUST NOT** be encoded as CBOR byte strings (*major type 2*).
+- UUIDs **MUST** be encoded as UTF-8 text strings in canonical UUID format.
 
 ### 6.3 Simplified CBOR Notation
 
