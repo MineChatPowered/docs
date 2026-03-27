@@ -332,6 +332,8 @@ This specification defines:
 
 ---
 
+- Servers **MAY** apply filtering, permissions, or routing logic when handling messages, provided that moderation rules defined in this specification are enforced.
+
 - The server **MAY** distribute a received message to zero or more connected clients (e.g., broadcast, filtering, or routing).
 
 - Clients **MUST NOT** assume that a sent message will be broadcast, echoed back, or delivered to any specific recipient.
@@ -370,13 +372,9 @@ Payload:
 
 The timestamp **MUST** match the corresponding PING.
 
-### 8.8 MODERATION (Clientbound)
+The MODERATION packet is used by the server to communicate and enforce moderation actions on client devices or Minecraft accounts.
 
-The MODERATION packet is used by the server to enforce rules on client devices or Minecraft accounts. It communicates actions such as warnings, mutes, kicks, or bans, along with optional details like reason and duration.
-
-Clients **MUST** enforce these actions locally, applying them according to the specified scope (per client device or per account).
-
-This packet is strictly for moderation purposes and **does not convey system or server lifecycle events**.
+Moderation actions are authoritative and **MUST** be enforced by the server as part of its session and message handling logic.
 
 ```
 Packet Type: 0x08
@@ -387,12 +385,52 @@ Payload:
 
 ```
 {
-  0: action (int),        ; warn=0, mute=1, kick=2, ban=3
-  1: scope (int),         ; client=0, account=1
-  2: reason (string),     ; optional
-  3: duration_seconds (int) ; optional
+  0: action (int),           ; warn=0, mute=1, kick=2, ban=3
+  1: scope (int),            ; client=0, account=1
+  2: reason (string),        ; optional
+  3: duration_seconds (int)  ; optional
 }
 ```
+
+#### Semantics
+
+- `action` defines the moderation action being applied.
+- `scope` determines whether the action applies to:
+  - a specific client device (`client=0`), or
+  - the associated Minecraft account (`account=1`).
+- `reason` and `duration_seconds` provide additional context and are optional.
+
+MODERATION is independent of system lifecycle events and **MUST NOT** be used to signal server shutdown or maintenance.
+
+#### Enforcement Rules
+
+- Servers **MUST** enforce moderation actions consistently across sessions according to the specified `scope`.
+
+- **Mute**:
+  - Messages sent by the affected client **MUST NOT** be distributed to other clients.
+
+- **Kick**:
+  - The server **MUST** terminate the connection after sending the MODERATION packet.
+  - The server **MAY** follow up with a `SYSTEM_DISCONNECT` packet indicating the reason.
+
+- **Ban**:
+  - The server **MUST** prevent the affected client or account from establishing new sessions while the ban is active.
+  - If a banned client attempts to connect, the server **MUST** reject the connection.
+
+- **Warn**:
+  - Has no direct enforcement effect on the connection.
+  - Servers **MAY** log, notify, or apply additional policies internally.
+
+#### Client Behavior
+
+- Clients **MUST** apply the received moderation action locally where applicable.
+- Clients **MUST** terminate the session upon receiving a kick or ban action that applies to their scope.
+- Clients **MUST NOT** attempt to bypass or ignore active moderation actions.
+
+#### Scope Semantics
+
+- If `scope = client`, the action applies only to the current device session identified by its `client_uuid`.
+- If `scope = account`, the action applies to all client devices associated with the Minecraft account.
 
 ### 8.9 SYSTEM_DISCONNECT (Clientbound)
 
