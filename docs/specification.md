@@ -219,17 +219,54 @@ Payload:
 Sent by the client immediately after linking or reconnecting.
 
 ```
+
 Packet Type: 0x03
 Direction: Client → Server
+
 ```
 
 Payload:
 
 ```
+
 {
-  0: supports_components (bool)
+  0: supported_formats (array of string),
+  1: preferred_format (string) ; optional
 }
+
 ```
+
+#### Semantics
+
+- `supported_formats` declares the set of message formats the client is capable of receiving.
+- Each entry is a string identifier.
+
+Implementations **MUST** include `"components"` in this list.
+
+This specification defines the following format identifiers:
+
+- `"components"`:
+  * JSON-encoded Minecraft Text Component (see Section 8.5)
+  * This format is **REQUIRED** and represents the canonical message format of the protocol
+
+- `"commonmark"`:
+  * CommonMark Markdown text
+  * Reference: <https://commonmark.org/>
+  * Support for this format is **RECOMMENDED**
+
+Clients **MAY** include additional format identifiers for extensions or implementation-defined formats.
+
+- `preferred_format` indicates the client’s preferred format for receiving messages.
+
+Rules:
+
+- If present, `preferred_format` **MUST** be one of the values listed in `supported_formats`.
+- Servers **SHOULD** respect `preferred_format` when selecting a format for outgoing `CHAT_MESSAGE` packets.
+- Servers **MAY** ignore `preferred_format` based on implementation policy, compatibility, or message constraints.
+
+Servers **MUST** select a format supported by the client when sending `CHAT_MESSAGE` packets.
+
+If no mutually supported format exists, the server **MUST** fall back to `"components"`.
 
 ### 8.4 AUTH_OK (Clientbound)
 
@@ -257,20 +294,43 @@ Payload:
 
 ```
 {
-  0: format (string),     ; "commonmark" or "components"
+  0: format (string),
   1: content (string)
 }
 ```
 
 #### Format Semantics
 
-- `commonmark`:
-  * Content is CommonMark Markdown
-  * Reference: <https://commonmark.org/>
-- `components`:
-  * Content is a JSON-encoded Minecraft Text Component
+- `format` is a string identifier describing how `content` must be interpreted.
+
+This specification defines:
+
+- `"components"`:
+  * `content` **MUST** be a UTF-8 string containing a JSON-encoded Minecraft Text Component
+  * This format is **mandatory** and **MUST** be supported by all implementations
   * Based on the official text component format: <https://minecraft.wiki/w/Text_component_format>
   * Produced by Paper / Adventure: <https://papermc.io/>
+
+- `"commonmark"`:
+  * `content` is a UTF-8 string containing [CommonMark Markdown](https://commonmark.org/)
+  * Support for this format is **RECOMMENDED**
+
+#### Rules
+
+- Clients **MUST** support receiving `"components"` messages.
+- Servers **MUST** be able to send `"components"` messages.
+
+- Clients **MAY** send messages in any format listed in their `CAPABILITIES`.
+
+- Servers **MUST NOT** send a `CHAT_MESSAGE` in a format not declared in the client's `supported_formats`.
+
+- When multiple formats are supported by the client, the server **SHOULD** select the format indicated by `preferred_format`, if provided.
+
+- Servers **MAY** convert messages between formats as needed.
+
+- If a server cannot process a message format sent by the client, it **MUST** reject the message or ignore it according to implementation policy.
+
+- The `content` field is always a UTF-8 CBOR text string, regardless of format.
 
 ### 8.6 PING (Bidirectional)
 
