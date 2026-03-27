@@ -330,7 +330,15 @@ This specification defines:
 
 - If a server cannot process a message format sent by the client, it **MUST** reject the message or ignore it according to implementation policy.
 
+---
+
+- The server **MAY** distribute a received message to zero or more connected clients (e.g., broadcast, filtering, or routing).
+
+- Clients **MUST NOT** assume that a sent message will be broadcast, echoed back, or delivered to any specific recipient.
+
 - The `content` field is always a UTF-8 CBOR text string, regardless of format.
+
+- Servers **SHOULD**, by default, broadcast messages to all authorized clients unless restricted by configuration or moderation.
 
 ### 8.6 PING (Bidirectional)
 
