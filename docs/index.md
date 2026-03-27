@@ -16,4 +16,4 @@ Here you'll find:
 
 For updates and community contributions, visit our [GitHub repository](https://github.com/MineChatPowered/docs).
 
-The content on this site is licensed under the [CC-BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) unless stated otherwise.
+The content on this site is licensed under the [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/) unless stated otherwise.
