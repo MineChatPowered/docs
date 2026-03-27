@@ -136,11 +136,23 @@ This specification defines semantic meaning for CBOR map keys within defined num
 
 Unless otherwise stated:
 
-- Integers inside CBOR are standard CBOR integers (variable width).
-- Strings **MUST** be encoded as **CBOR text strings** (*major type 3*) and therefore **MUST** be valid UTF-8.
-- Implementations **MUST** reject strings containing invalid UTF-8 sequences.
+#### Strings
+
+- Strings **MUST** be encoded as **CBOR text strings** (*major type 3*).
+- Strings **MUST** be valid UTF-8.
+- Implementations **MUST reject** strings containing invalid UTF-8 sequences.
 - Strings **MUST NOT** be encoded as CBOR byte strings (*major type 2*).
 - UUIDs **MUST** be encoded as UTF-8 text strings in canonical UUID format.
+
+#### Integers
+
+- Integer fields **MUST** be encoded as CBOR integers.
+- Integer values **MUST** fit within a signed 64-bit integer range:
+  - Minimum: -9,223,372,036,854,775,808
+  - Maximum: 9,223,372,036,854,775,807
+- Implementations **MUST reject** values outside this range.
+- If a field requires a different bound, it will be explicitly defined in its packet specification.
+- Integer values MUST be treated as signed 64-bit integers in all implementations, regardless of the host language's native integer type.
 
 ### 6.3 Simplified CBOR Notation
 
@@ -238,7 +250,7 @@ Payload:
 
 #### Semantics
 
-- `supported_formats` declares the set of message formats the client is capable of receiving and **MUST** be a CBOR array of text strings.
+- `supported_formats` declares the set of message formats the client is capable of receiving and **MUST** be a CBOR array of text strings. Format identifiers are case-sensitive and **MUST** be compared as *exact* byte-for-byte UTF-8 strings.
 
 Each element in the array:
 
@@ -369,6 +381,15 @@ Payload:
 }
 ```
 
+- Represents milliseconds since the Unix epoch (1970-01-01T00:00:00Z).
+- The value **MUST** conform to the integer constraints defined in Section 6.2.
+
+---
+
+- The timestamp **MAY** be generated using the sender's local clock.
+- The value **MUST NOT** be altered during transit.
+- The receiver **MUST** treat it as an opaque value for RTT calculation.
+
 ### 8.7 PONG (Bidirectional)
 
 ```
@@ -382,6 +403,20 @@ Payload:
   0: timestamp_ms (int)
 }
 ```
+
+- This packet is the response to a corresponding `PING` packet.
+
+- The `timestamp_ms` value **MUST** be identical to the value received in the `PING` packet.
+
+- The receiver **MUST** match `PONG.timestamp_ms` with the outstanding `PING.timestamp_ms` to measure RTT.
+
+---
+
+- Receipt of a `PONG` with an unknown or unmatched `timestamp_ms` **MAY** be ignored.
+- The `timestamp_ms` value is echoed back unchanged in the corresponding `PONG` packet.
+- The `timestamp_ms` field **MUST** exactly match the value received in the corresponding `PING`.
+
+### 8.8 MODERATION (Clientbound)
 
 The timestamp **MUST** match the corresponding PING.
 
