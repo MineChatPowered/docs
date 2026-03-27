@@ -18,7 +18,7 @@ This specification defines **wire-level behavior only**. User interfaces, databa
 
 ## 2. Terminology and Conventions
 
-The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in RFC 2119.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
 - **Client**: An external MineChat client application.
 - **Server**: A MineChat server component integrated with a Minecraft server.
