@@ -418,8 +418,6 @@ Payload:
 
 ### 8.8 MODERATION (Clientbound)
 
-The timestamp **MUST** match the corresponding PING.
-
 The MODERATION packet is used by the server to communicate and enforce moderation actions on client devices or Minecraft accounts.
 
 Moderation actions are authoritative and **MUST** be enforced by the server as part of its session and message handling logic.
@@ -613,9 +611,10 @@ All packet structures are defined normatively in Section 8; this table is **non-
 
 #### CAPABILITIES (0x03)
 
-| Key | Name                | Type | Required |
-| --- | ------------------- | ---- | -------- |
-| 0   | supports_components | bool | Yes      |
+| Key | Name              | Type             | Required |
+| --- | ----------------- | ---------------- | -------- |
+| 0   | supported_formats | array of string  | Yes      |
+| 1   | preferred_format  | string           | No       |
 
 #### AUTH_OK (0x04)
 
@@ -637,15 +636,15 @@ Valid `format` values:
 
 #### PING (0x06)
 
-| Key | Name         | Type | Required |
-| --- | ------------ | ---- | -------- |
-| 0   | timestamp_ms | int  | Yes      |
+| Key | Name         | Type | Required | Notes                              |
+| --- | ------------ | ---- | -------- | ---------------------------------- |
+| 0   | timestamp_ms | int  | Yes      | Milliseconds since Unix epoch      |
 
 #### PONG (0x07)
 
-| Key | Name         | Type | Required |
-| --- | ------------ | ---- | -------- |
-| 0   | timestamp_ms | int  | Yes      |
+| Key | Name         | Type | Required | Notes                               |
+| --- | ------------ | ---- | -------- | ----------------------------------- |
+| 0   | timestamp_ms | int  | Yes      | Must match corresponding PING value |
 
 #### MODERATION (0x08)
 
