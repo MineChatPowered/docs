@@ -238,7 +238,20 @@ Payload:
 
 #### Semantics
 
-- `supported_formats` declares the set of message formats the client is capable of receiving.
+- `supported_formats` declares the set of message formats the client is capable of receiving and **MUST** be a CBOR array of text strings.
+
+Each element in the array:
+
+- **MUST** be a CBOR text string (major type 3)
+- **MUST** contain a UTF-8 encoded format identifier
+- **MUST NOT** be empty
+- **MUST NOT** contain duplicates within the array
+
+The array:
+
+- **MUST NOT** contain non-string values
+- **MAY** be empty, but in that case the client will only be able to communicate using `"components"` if supported by the server fallback rules
+- **SHOULD** include `"components"` as a supported format
 - Each entry is a string identifier.
 
 Implementations **MUST** include `"components"` in this list.
