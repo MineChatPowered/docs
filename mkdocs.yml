@@ -12,4 +12,9 @@ nav:
   - Specification: specification.md
   - Implementation Guides: implementation.md
 
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
 copyright: MineChat is an independent project. Not affiliated with or endorsed by Mojang Studios or Minecraft.

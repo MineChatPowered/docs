@@ -1,5 +1,12 @@
 # MineChat Documentation
 
+!!! note "MineChat protocol is currently in development"
+    This specification is a **work in progress** and may change without notice.
+
+    The protocol is not stable until version **1.0.0** is released. That version will be frozen and used as the baseline for compatibility.
+
+    Implementations targeting this version should expect breaking changes.
+
 Welcome to the official documentation for **MineChat**, a cross-platform chat protocol for Minecraft servers.
 
 Here you'll find:
