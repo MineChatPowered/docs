@@ -4,7 +4,9 @@
 
 ## 1. Purpose
 
-The MineChat Protocol defines a secure, binary-framed, compressed, client-server protocol that enables users to interact with a Minecraft server's chat system **without being logged into Minecraft on the same device**.
+The MineChat Protocol defines a secure, binary-framed, compressed protocol that enables users to interact with a Minecraft server's chat system **without being logged into Minecraft on the same device**.
+
+It uses a stateful, bidirectional, event-driven client-server model where the server is authoritative and clients declare their capabilities.
 
 The protocol is designed to:
 
