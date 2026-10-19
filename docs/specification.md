@@ -41,9 +41,12 @@ All connections **MUST** be established over TLS.
 
 ### 3.2 Certificate Pinning
 
-- During initial linking, the client stores the server's certificate or public key.
+- During initial linking, the client stores the server's certificate or public key. No pin check is performed on that first connection.
+- A pin **MAY** be the SHA-256 digest of the DER-encoded peer certificate, or the SHA-256 digest of the DER-encoded SubjectPublicKeyInfo.
 - On subsequent connections, the client **MUST reject** the connection if the presented certificate does not match the pinned certificate.
+- Pin comparison is authoritative; implementations **MUST NOT** silently trust a changed certificate.
 - Behavior on certificate rotation is **implementation-defined**, but certificate mismatch **MUST** cause connection failure.
+- Hostname verification policy is **implementation-defined**, but a failed pin check **MUST** terminate the connection.
 
 ### 3.3 Default Port
 
@@ -81,7 +84,9 @@ Each frame consists of:
 - `decompressed size` indicates the exact byte length after decompression.
 - `compressed size` indicates the byte length of the compressed payload.
 - Receivers **MUST** read exactly the specified number of bytes.
-- Mismatched sizes or decompression failure **MUST** result in connection termination.
+- Decompression **MUST** produce exactly `decompressed size` bytes. A mismatched length or decompression failure **MUST** result in connection termination.
+- A stream ending before any byte of a frame has been read is a graceful disconnect.
+- A stream ending part-way through a frame header or payload **MUST** be treated as a protocol error and terminate the connection.
 
 ### 4.4 Connection Termination
 
@@ -191,6 +196,49 @@ All packets share the following top-level structure:
 }
 ```
 
+### 7.3 Envelope Requirements
+
+- The top-level value **MUST** be a CBOR map.
+- Key `0` **MUST** be present and **MUST** be a CBOR integer packet type.
+- Key `1` **MUST** be present and **MUST** be a CBOR map.
+- Unknown top-level keys **MUST** be ignored.
+- Missing or malformed required envelope keys **MUST** terminate the connection.
+
+### 7.4 Session Stages
+
+A session moves through four stages. Each stage describes what the server already knows about the connected client, and how both interact.
+
+- **Not linked**. The connection is open, but the server does not know which client device or which Minecraft account is on the other end. The client sends `LINK` with a linking code. Nothing else is accepted at this stage.
+
+- **Linked**. The server has accepted the linking code and has replied with `LINK_OK`. The server now knows which Minecraft account this device belongs to. The client sends `CAPABILITIES` next.
+
+- **Ready**. The server has read and accepted the client's list of message formats and has replied with `AUTH_OK`. Both sides now know which formats they can use, and chat can flow.
+
+- **Closed**. The connection has ended. The server reads no further packets.
+
+### 7.5 Packets Accepted at Each Stage
+
+| Packet              | Sent by | Accepted at                         |
+| ------------------- | ------- | ----------------------------------- |
+| `LINK`              | Client  | Not linked                          |
+| `LINK_OK`           | Server  | Reply to an accepted `LINK`         |
+| `CAPABILITIES`      | Client  | Linked                              |
+| `AUTH_OK`           | Server  | Reply to an accepted `CAPABILITIES` |
+| `CHAT_MESSAGE`      | Both    | Ready                               |
+| `PING`              | Both    | Any stage before Closed             |
+| `PONG`              | Both    | Any stage before Closed             |
+| `MODERATION`        | Server  | Ready                               |
+| `SYSTEM_DISCONNECT` | Server  | Any stage                           |
+| Unknown packet type | Either  | Any stage; ignored (§12)            |
+
+### 7.6 Packets That Arrive Out of Order
+
+A packet that arrives at the wrong stage is a protocol error. The receiver **MUST** close the connection.
+
+Repeats count as out-of-order packets. A second `LINK` after the session is already linked is a protocol error. A second `CAPABILITIES` after the session is already ready is a protocol error.
+
+`PING` and `PONG` are the only exception. They exist to check that the connection is still alive, so they are accepted at any point before the session ends.
+
 ## 8. Packet Types
 
 ### 8.1 LINK (Serverbound)
@@ -242,12 +290,10 @@ Direction: Client → Server
 Payload:
 
 ```
-
 {
   0: supported_formats (array of string),
   1: preferred_format (string) ; optional
 }
-
 ```
 
 #### Semantics
@@ -264,9 +310,8 @@ Each element in the array:
 The array:
 
 - **MUST NOT** contain non-string values
-- **MAY** be empty, but in that case the client will only be able to communicate using `"components"` if supported by the server fallback rules
-- **SHOULD** include `"components"` as a supported format
-- Each entry is a string identifier.
+- **MUST** be non-empty
+- Each entry is a string identifier
 
 Implementations **MUST** include `"components"` in this list.
 
@@ -291,13 +336,13 @@ Rules:
 - Servers **SHOULD** respect `preferred_format` when selecting a format for outgoing `CHAT_MESSAGE` packets.
 - Servers **MAY** ignore `preferred_format` based on implementation policy, compatibility, or message constraints.
 
-Servers **MUST** select a format supported by the client when sending `CHAT_MESSAGE` packets.
+The server answers with its own list and its choice in `AUTH_OK`. §8.4 defines how the two lists are combined.
 
-If no mutually supported format exists, the server **MUST** fall back to `"components"`.
+- Servers **MUST** reject a `CAPABILITIES` payload that does not include `"components"`, by closing the connection without replying.
 
 ### 8.4 AUTH_OK (Clientbound)
 
-Indicates authentication completion.
+Confirms that linking and format negotiation are complete. It also states which format the server has chosen.
 
 ```
 Packet Type: 0x04
@@ -307,8 +352,29 @@ Direction: Server → Client
 Payload:
 
 ```
-{}
+{
+  0: server_formats (array of string),
+  1: selected_format (string)
+}
 ```
+
+#### Semantics
+
+- `server_formats` lists the formats the server is able to receive. It follows the same rules as `supported_formats` (§8.3): an array of unique, non-empty text strings, and it **MUST** include `"components"`.
+- `selected_format` is the format the server will use for `CHAT_MESSAGE` packets it sends.
+
+The two sides agree on a format by intersecting their lists. The agreed formats are the entries that appear in both `supported_formats` and `server_formats`.
+
+Rules:
+
+- `selected_format` **MUST** be an agreed format.
+- Servers **SHOULD** select `preferred_format` when it is an agreed format.
+- Servers **MAY** select a different agreed format when the preferred one cannot represent a given message.
+- Servers **MUST NOT** send a `CHAT_MESSAGE` in a format that is not an agreed format.
+
+Because both sides **MUST** include `"components"`, two conforming implementations always share at least one format. An empty intersection means one side is not conforming.
+
+Clients **MUST** use `selected_format` for anything they need to send, unless they send a format the server listed in `server_formats`.
 
 ### 8.5 CHAT_MESSAGE (Bidirectional)
 
@@ -322,7 +388,8 @@ Payload:
 ```
 {
   0: format (string),
-  1: content (string)
+  1: content (string),
+  2: source (string)
 }
 ```
 
@@ -341,6 +408,19 @@ This specification defines:
 - `"commonmark"`:
   * `content` is a UTF-8 string containing [CommonMark Markdown](https://commonmark.org/)
   * Support for this format is **RECOMMENDED**
+
+#### Source Semantics
+
+- `source` indicates the origin of the message.
+- This field **MUST** be present in all `CHAT_MESSAGE` packets.
+- Valid values:
+
+| Value        | Meaning                                      |
+| ------------ | -------------------------------------------- |
+| `"minechat"` | Message originated from a MineChat client    |
+| `"minecraft"`| Message originated from a Minecraft player   |
+
+- Clients **MAY** use `source` to differentiate messages visually (e.g., prefixes, colors, icons).
 
 #### Rules
 
@@ -529,13 +609,21 @@ Clients receiving `SYSTEM_DISCONNECT` **MUST NOT** wait for PING/PONG timeout an
 ## 9. Keep-Alive
 
 - Default keep-alive interval: **15 seconds**
-- Interval **MAY** be configurable.
+- Default keep-alive timeout: **30 seconds**
+- Interval and timeout **MAY** be configurable.
 - Either side may send PING at any time.
+- Any received packet **MUST** reset the inactivity timer.
 - Failure to receive any packet within the timeout window **MUST** result in connection termination.
 
 ## 10. Packet Flow
 
-### 10.1 Linking and Authentication
+This section walks through each exchange in order. Every step names who sends what, and what the other side does next.
+
+### 10.1 Linking a Device
+
+A player runs a link command on the Minecraft server. The server shows a short linking code. The player types that code into their MineChat client.
+
+The client then opens a TLS connection to the MineChat server:
 
 ```
 Player                  Server                Client
@@ -554,7 +642,34 @@ Player                  Server                Client
   |                       |---- AUTH_OK --------|
 ```
 
-### 10.2 Sending a Chat Message
+What happens at each step:
+
+1. The player runs the link command, and the Minecraft server shows a linking code.
+2. The client opens a TLS connection. The server presents its self-signed certificate.
+3. The client has no saved pin yet, so it accepts this certificate and saves a SHA-256 digest of it. Later connections are checked against the saved value (§3.2).
+4. The client sends `LINK` with the linking code and its own client UUID.
+5. The server checks the code. If the code is correct, the server sends `LINK_OK` with the Minecraft UUID, and the session moves to *Linked*. If the code is wrong, the server closes the connection.
+6. The client sends `CAPABILITIES` with the message formats it understands.
+7. The server chooses one format from that list, and sends `AUTH_OK` with its chosen format. The session is now *Ready*.
+
+### 10.2 Declaring Message Formats
+
+```
+Client                         Server
+  |                               |
+  |--- CAPABILITIES ------------->|
+  |                               |
+  |<--- AUTH_OK ------------------|
+```
+
+1. The client sends `CAPABILITIES`. It lists every format it understands, and optionally names one as its preferred format (§8.3).
+2. The server intersects that list with its own supported formats, and picks one.
+3. The server sends `AUTH_OK`. It reports its own list as `server_formats`, and its choice as `selected_format` (§8.4).
+4. The session is now *Ready*, and chat can flow.
+
+Both sides list `"components"`, so both sides can always reach each other. The client can now see which format the server chose, and whether its preferred format was honoured.
+
+### 10.3 Sending a Chat Message
 
 ```
 Client                         Server
@@ -563,6 +678,27 @@ Client                         Server
   |                               |
   |<-- CHAT_MESSAGE (broadcast) ---|
 ```
+
+1. The client sends `CHAT_MESSAGE`. It carries the format, the message text, and a `source` saying where the message came from (§8.5).
+2. The server applies moderation rules to the message.
+3. The server converts the message into a format each recipient understands.
+4. The server sends `CHAT_MESSAGE` to the clients it chooses. This may be every client, or only some of them.
+
+The sender is not promised a copy of its own message. The server does not have to echo it back.
+
+### 10.4 Answering a Keep-Alive Probe
+
+Either side may send `PING` at any point. The other side replies with `PONG` and copies the timestamp unchanged (§9).
+
+### 10.5 Ending a Session
+
+There are two ways a session ends, and they are not the same thing.
+
+**A moderation decision.** The server sends `MODERATION`. A kick ends the connection after the packet is sent. A ban is recorded and also blocks future sessions (§8.8).
+
+**A system event.** The server sends `SYSTEM_DISCONNECT` and then closes the connection. Use this for shutdown, maintenance, internal errors, and overload. Do not use it for kicks or bans (§8.9).
+
+Either way, the session ends and the connection closes (§4.4).
 
 ## 11. Security Considerations
 
@@ -620,7 +756,19 @@ All packet structures are defined normatively in Section 8; this table is **non-
 
 #### AUTH_OK (0x04)
 
-No payload fields.
+| Key | Name             | Type            | Required |
+| --- | ---------------- | --------------- | -------- |
+| 0   | server_formats   | array of string | Yes      |
+| 1   | selected_format  | string          | Yes      |
+
+Valid `selected_format` values:
+
+| Value        | Meaning                               |
+| ------------ | ------------------------------------- |
+| `commonmark` | CommonMark Markdown                   |
+| `components` | JSON-encoded Minecraft Text Component |
+
+Both sides **MUST** include `"components"`. `selected_format` **MUST** appear in both `server_formats` and the client's `supported_formats`.
 
 #### CHAT_MESSAGE (0x05)
 
@@ -628,6 +776,7 @@ No payload fields.
 | --- | ------- | ------ | -------- |
 | 0   | format  | string | Yes      |
 | 1   | content | string | Yes      |
+| 2   | source  | string | Yes      |
 
 Valid `format` values:
 
@@ -635,6 +784,13 @@ Valid `format` values:
 | ------------ | ------------------------------------- |
 | `commonmark` | CommonMark Markdown                   |
 | `components` | JSON-encoded Minecraft Text Component |
+
+Valid `source` values:
+
+| Value        | Meaning                                   |
+| ------------ | ----------------------------------------- |
+| `"minechat"` | Message originated from a MineChat client |
+| `"minecraft"`| Message originated from a Minecraft player |
 
 #### PING (0x06)
 
